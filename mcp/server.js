@@ -8,10 +8,10 @@ const { promisify } = require("node:util");
 const execFileAsync = promisify(execFile);
 
 const WORKSPACE_ROOT = path.resolve(__dirname, "..");
+const BUNDLED_BRIDGE_BIN = path.join(WORKSPACE_ROOT, "bin", "lookinextension");
 const XCODE_PROJECT = path.join(WORKSPACE_ROOT, "lookinextension", "lookinextension.xcodeproj");
 const DERIVED_DATA = process.env.LOOKIN_BRIDGE_DERIVED_DATA || "/private/tmp/lookinextension-derived";
-const DEFAULT_BRIDGE_BIN = path.join(DERIVED_DATA, "Build", "Products", "Debug", "lookinextension");
-const BRIDGE_BIN = process.env.LOOKIN_BRIDGE_BIN || DEFAULT_BRIDGE_BIN;
+const SOURCE_BRIDGE_BIN = path.join(DERIVED_DATA, "Build", "Products", "Debug", "lookinextension");
 
 const SERVER_INFO = {
   name: "lookin-mcp",
@@ -379,15 +379,49 @@ let bridgeDaemonReady = null;
 let bridgeDaemonBuffer = "";
 let bridgeDaemonNextRequestId = 1;
 const bridgeDaemonRequests = new Map();
+let resolvedBridgeBin = null;
+
+function resolveBridgeBinaryPath() {
+  if (resolvedBridgeBin && fs.existsSync(resolvedBridgeBin)) {
+    return resolvedBridgeBin;
+  }
+
+  const envBridgeBin = process.env.LOOKIN_BRIDGE_BIN;
+  if (envBridgeBin && fs.existsSync(envBridgeBin)) {
+    resolvedBridgeBin = envBridgeBin;
+    return resolvedBridgeBin;
+  }
+
+  if (fs.existsSync(BUNDLED_BRIDGE_BIN)) {
+    resolvedBridgeBin = BUNDLED_BRIDGE_BIN;
+    return resolvedBridgeBin;
+  }
+
+  if (fs.existsSync(SOURCE_BRIDGE_BIN)) {
+    resolvedBridgeBin = SOURCE_BRIDGE_BIN;
+    return resolvedBridgeBin;
+  }
+
+  return null;
+}
 
 async function ensureBridgeBinary() {
-  if (buildEnsured && fs.existsSync(BRIDGE_BIN)) {
+  const existingBridgeBin = resolveBridgeBinaryPath();
+  if (buildEnsured && existingBridgeBin) {
+    buildEnsured = true;
     return;
   }
 
-  if (fs.existsSync(BRIDGE_BIN)) {
+  if (existingBridgeBin) {
     buildEnsured = true;
     return;
+  }
+
+  if (!fs.existsSync(XCODE_PROJECT)) {
+    throw new Error(
+      "No native bridge binary was found. " +
+      `Expected one of: LOOKIN_BRIDGE_BIN, bundled ${BUNDLED_BRIDGE_BIN}, or source build output ${SOURCE_BRIDGE_BIN}.`
+    );
   }
 
   const args = [
@@ -409,8 +443,9 @@ async function ensureBridgeBinary() {
     throw new Error(`Failed to build native bridge.\n${stderr || stdout}`);
   }
 
-  if (!fs.existsSync(BRIDGE_BIN)) {
-    throw new Error(`Native bridge binary was not produced at ${BRIDGE_BIN}`);
+  resolvedBridgeBin = resolveBridgeBinaryPath();
+  if (!resolvedBridgeBin) {
+    throw new Error(`Native bridge binary was not produced at ${SOURCE_BRIDGE_BIN}`);
   }
 
   buildEnsured = true;
@@ -475,8 +510,12 @@ async function ensureBridgeDaemon() {
 
   bridgeDaemonReady = (async () => {
     await ensureBridgeBinary();
+    const bridgeBin = resolveBridgeBinaryPath();
+    if (!bridgeBin) {
+      throw bridgeError("bridge_exec_failed", "No native bridge binary is available.");
+    }
 
-    const child = spawn(BRIDGE_BIN, ["daemon"], {
+    const child = spawn(bridgeBin, ["daemon"], {
       cwd: WORKSPACE_ROOT,
       stdio: ["pipe", "pipe", "pipe"],
     });

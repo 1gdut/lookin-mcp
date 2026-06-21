@@ -36,6 +36,8 @@ Current screenshots returned by the bridge are persisted as PNG files.
 2. Configure your MCP client to launch `mcp/server.js`.
 3. Start with `lookin_list_targets`, then `lookin_connect`, then `lookin_get_hierarchy`.
 
+If you are using a packaged release, `mcp/server.js` will first look for a bundled bridge binary at `../bin/lookinextension`. In that case, Xcode is not required on the user machine.
+
 Example MCP config:
 
 ```json
@@ -45,14 +47,13 @@ Example MCP config:
       "command": "node",
       "args": [
         "/absolute/path/to/lookin-mcp/mcp/server.js"
-      ],
-      "env": {
-        "LOOKIN_BRIDGE_DERIVED_DATA": "/tmp/lookinextension-derived"
-      }
+      ]
     }
   }
 }
 ```
+
+If you want to force a custom bridge binary, you can still provide `LOOKIN_BRIDGE_BIN` in your MCP client environment.
 
 ## Repo Layout
 
@@ -72,6 +73,21 @@ Example MCP config:
 ## More Details
 
 See [mcp/README.md](mcp/README.md) for the full tool list, verification scripts, and bridge behavior.
+
+## Building A Release Package
+
+To create a distributable macOS release zip with a bundled native bridge:
+
+```bash
+./scripts/build-release.sh
+```
+
+The script will:
+
+- build the native bridge in `Release`
+- stage a distributable folder under `dist/`
+- bundle `bin/lookinextension`, `mcp/`, and `README.md`
+- generate a zip such as `dist/lookin-mcp-macos-arm64-v0.2.0.zip`
 
 ---
 
@@ -111,6 +127,8 @@ See [mcp/README.md](mcp/README.md) for the full tool list, verification scripts,
 2. 在你的 MCP 客户端里配置 `mcp/server.js` 作为 server 启动入口。
 3. 先调用 `lookin_list_targets`，再调用 `lookin_connect`，然后用 `lookin_get_hierarchy` 拉取运行时层级。
 
+如果你使用的是已经打包好的 release，`mcp/server.js` 会优先查找 `../bin/lookinextension` 这个内置 bridge 二进制。这种情况下，使用者机器上不需要再安装 Xcode 来编译 bridge。
+
 示例 MCP 配置：
 
 ```json
@@ -120,14 +138,13 @@ See [mcp/README.md](mcp/README.md) for the full tool list, verification scripts,
       "command": "node",
       "args": [
         "/absolute/path/to/lookin-mcp/mcp/server.js"
-      ],
-      "env": {
-        "LOOKIN_BRIDGE_DERIVED_DATA": "/tmp/lookinextension-derived"
-      }
+      ]
     }
   }
 }
 ```
+
+如果你想强制指定 bridge 二进制路径，也可以在 MCP 客户端环境变量里设置 `LOOKIN_BRIDGE_BIN`。
 
 ## 仓库结构
 
@@ -147,3 +164,18 @@ See [mcp/README.md](mcp/README.md) for the full tool list, verification scripts,
 ## 更多说明
 
 更完整的工具列表、验证脚本和 bridge 行为说明见 [mcp/README.md](mcp/README.md)。
+
+## 构建 Release 包
+
+要生成一个可分发的 macOS release zip，可以执行：
+
+```bash
+./scripts/build-release.sh
+```
+
+这个脚本会：
+
+- 用 `Release` 配置编译原生 bridge
+- 在 `dist/` 下组装发布目录
+- 打包 `bin/lookinextension`、`mcp/` 和 `README.md`
+- 生成类似 `dist/lookin-mcp-macos-arm64-v0.2.0.zip` 的压缩包

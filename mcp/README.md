@@ -9,6 +9,12 @@
 - daemon 在同一个原生进程里复用 `LKXBridgeService`
 - MCP 层会串行化 bridge 调用，减少 LookinServer 单连接被并发请求打断的概率
 
+bridge 二进制查找顺序：
+
+- `LOOKIN_BRIDGE_BIN`
+- 仓库或 release 包内的 `../bin/lookinextension`
+- 源码模式下的本地 `DerivedData` 构建产物
+
 ## 最新状态
 
 - 2026-06-20 已完成真机 CoreDevice + LookinServer 端到端验证，并补上真机 IPv6 监听兼容。
@@ -106,10 +112,12 @@ xcodebuild -project lookinextension/lookinextension.xcodeproj \
   build
 ```
 
+如果你使用的是预打包 release，并且目录里已经包含 `bin/lookinextension`，则不会触发这一步源码编译。
+
 ## 可选环境变量
 
 - `LOOKIN_BRIDGE_BIN`
-  - 显式指定桥接器二进制路径。
+  - 显式指定桥接器二进制路径，优先级最高。
 - `LOOKIN_BRIDGE_DERIVED_DATA`
   - 显式指定 `xcodebuild` 的 `DerivedData` 路径。
 - `LOOKIN_EXPECT_UDID`
